@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>أداة تحليل الأسباب الجذرية RCA</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--tx:#1b2430;--mut:#5d6b7a;--bd:#d8dee6;--pr:#1f6feb;--ok:#1a7f4b;--wn:#b7791f;--er:#c53030;--hd:#e8f0fe;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12171d;--card:#1b222b;--tx:#e6ebf1;--mut:#9aa8b6;--bd:#2c3744;--pr:#5b9bff;--ok:#4cc38a;--wn:#e0a94a;--er:#f08080;--hd:#223149}}
+:root[data-theme="dark"]{--bg:#12171d;--card:#1b222b;--tx:#e6ebf1;--mut:#9aa8b6;--bd:#2c3744;--pr:#5b9bff;--ok:#4cc38a;--wn:#e0a94a;--er:#f08080;--hd:#223149}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.7 "Segoe UI",Tahoma,Arial,sans-serif}
+header{padding:14px 16px 4px}h1{margin:0;font-size:19px}header p{margin:2px 0 0;color:var(--mut);font-size:13px}
+nav{display:flex;gap:6px;overflow-x:auto;padding:10px 16px;position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);z-index:5}
+nav button{white-space:nowrap;border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:7px 13px;border-radius:20px;font:inherit;cursor:pointer}
+nav button.on{background:var(--pr);color:#fff;border-color:var(--pr)}
+main{padding:6px 16px 40px;max-width:900px;margin:auto}
+.c{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:12px}
+.c h3{margin:0 0 8px;font-size:16px}.m{color:var(--mut);font-size:13px}
+label{display:block;font-weight:600;font-size:13px;margin:10px 0 3px}
+input,textarea,select{width:100%;padding:8px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}
+textarea{min-height:64px;resize:vertical}
+.b{border:0;background:var(--pr);color:#fff;padding:8px 14px;border-radius:8px;font:inherit;cursor:pointer;margin:4px 0 0 6px}
+.b.g{background:transparent;color:var(--tx);border:1px solid var(--bd)}.b.d{background:var(--er)}
+.row{display:flex;gap:8px;flex-wrap:wrap}.row>*{flex:1;min-width:140px}
+.bar{height:10px;background:var(--bd);border-radius:6px;overflow:hidden}.bar i{display:block;height:100%}
+.hint{color:var(--wn);font-size:13px;margin:3px 0}
+.why{border-inline-start:4px solid var(--pr);padding-inline-start:10px;margin:12px 0}
+.chain{background:var(--hd);border-radius:8px;padding:10px;font-size:14px}
+.sv{overflow-x:auto;border:1px solid var(--bd);border-radius:10px;background:var(--card)}
+.sv svg{min-width:900px;display:block}
+.chk{display:flex;gap:8px;align-items:flex-start;font-weight:400;margin:8px 0}.chk input{width:auto;margin-top:6px}
+.tag{display:inline-block;background:var(--hd);border-radius:12px;padding:2px 10px;margin:2px;font-size:13px}
+table{width:100%;border-collapse:collapse;font-size:13px}td,th{border:1px solid var(--bd);padding:6px;text-align:start;vertical-align:top}
+details{margin:6px 0}summary{cursor:pointer;font-weight:600}
+</style>
+</head>
+<body>
+<header><h1>🔍 أداة تحليل الأسباب الجذرية</h1><p>صياغة المشكلة ← 5 Why ← عظم السمكة ← التحقق ← الأرشفة والتقارير</p></header>
+<nav id="nav"></nav>
+<main id="v"></main>
+<script>
+const $=s=>document.querySelector(s);
+const E=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const CATS={man:'الأفراد',machine:'الآلة',method:'الطريقة',material:'المادة',measure:'القياس',env:'البيئة'};
+const TESTS=['إزالة هذا السبب تمنع تكرار المشكلة (اختبار الغياب).','مدعوم بقياس أو بيانات أو مشاهدة مباشرة، وليس رأياً فقط.','اختبار «لذلك» العكسي متسق: كل حلقة تؤدي منطقياً إلى التي تليها.','ضمن نطاق تحكم المنظمة ويمكن اتخاذ إجراء بشأنه.','لا يوجد سؤال «لماذا» إضافي مفيد يمكن طرحه على هذا السبب.','يفسر لماذا حدثت المشكلة هنا والآن وليس في مكان أو وقت آخر (Is / Is-Not).','جُرّب إجراء تصحيحي أو تجربة صغيرة وأكدت النتيجة العلاقة.'];
+const blank=()=>({id:Date.now(),title:'',p:{what:'',where:'',when:'',size:'',trend:'',impact:''},whys:[{t:'',e:'',ok:0},{t:'',e:'',ok:0},{t:'',e:'',ok:0}],fish:{man:[],machine:[],method:[],material:[],measure:[],env:[]},rc:'',tests:[0,0,0,0,0,0,0],act:{fix:'',prev:'',owner:'',due:''}});
+const SAMPLE=()=>{const r=blank();r.title='تقوس الزجاج المقسّى';r.p={what:'ظهور تقعر في ألواح زجاج مطلي بعد التقسية بقيمة تتجاوز الحد المسموح به في مقياس الاستواء',where:'فرن التقسية، خط 1',when:'الوردية الليلية، يومياً تقريباً',size:'12% من الألواح مرفوضة مقابل هدف أقل من 3%، بمتوسط 2.1 مم',trend:'منذ 3 أسابيع وفي ازدياد',impact:'هدر زجاج وتأخير تسليم طلبية'};r.whys=[{t:'الحرارة غير متجانسة بين وجهي اللوح',e:'قياس حراري على عينة',ok:1},{t:'تدفق هواء الحمل غير متوازن في الفرن',e:'',ok:0},{t:'',e:'',ok:0}];r.fish.machine=['انسداد جزئي في فتحات الحمل','معايرة المقاومات'];r.fish.method=['إعدادات وصفة السماكة'];r.fish.material=['طلاء الوجه يمتص حرارة أكثر'];r.fish.measure=['قياس الاستواء بدون معيار موحد'];return r};
+let S=blank(),tab='p',arch=[],cmp=[];
+function store(k,v){try{if(v===undefined)return JSON.parse(localStorage.getItem(k)||'null');localStorage.setItem(k,JSON.stringify(v))}catch(e){return null}}
+arch=store('rca_arch')||[];
+function pscore(r){const p=r.p,h=[];let s=0;const a=(c,n,m)=>{if(c)s+=n;else h.push(m)};
+a(p.what.trim().length>=20,20,'صف الانحراف بدقة: ما الذي حدث مقابل المتوقع (20 حرفاً على الأقل).');
+a(p.where.trim().length>2,10,'حدد الموقع أو الخط أو الآلة.');
+a(p.when.trim().length>2,10,'حدد التوقيت أو الوردية أو معدل التكرار.');
+a(/\d/.test(p.size),20,'أضف قياساً كمياً: نسبة أو عدداً أو مقدار انحراف أو تكلفة.');
+a(p.trend.trim().length>2,10,'اذكر منذ متى بدأت وهل هي متزايدة أم ثابتة.');
+a(p.impact.trim().length>2,10,'اذكر الأثر: جودة أو تكلفة أو سلامة أو تسليم.');
+a(!/(يجب|ينبغي|نحتاج|لازم|إهمال|تقصير|بسبب|سببه|غلطة)/.test(Object.values(p).join(' ')),20,'احذف الحلول والاتهام والأسباب من صياغة المشكلة (يجب، إهمال، بسبب...).');
+return{s,h}}
+const tsc=r=>r.tests.reduce((a,b)=>a+b,0);
+const nf=r=>Object.values(r.fish).reduce((a,b)=>a+b.length,0);
+function setp(path,val){const k=path.split('.');let o=S;for(let i=0;i<k.length-1;i++)o=o[k[i]];o[k[k.length-1]]=val}
+const col=s=>s>=80?'var(--ok)':s>=50?'var(--wn)':'var(--er)';
+function chain(){const w=S.whys.filter(x=>x.t.trim());if(!w.length)return'أدخل إجابات 5 Why لعرض سلسلة المنطق العكسي.';
+return '<b>قراءة عكسية (لذلك):</b><br>'+[...w].reverse().map((x,i,a)=>E(x.t)+(i<a.length-1?' ← <i>لذلك</i> ':'')).join('')+' ← <i>لذلك</i> «'+E(S.p.what||'المشكلة')+'»'}
+const V={
+p(){const q=pscore(S);return`<div class="c"><h3>صياغة المشكلة</h3><p class="m">صف الظاهرة كما هي، دون حلول أو أسباب أو أسماء.</p>
+<label>عنوان التحليل</label><input data-k="title" value="${E(S.title)}" placeholder="مثال: تقوس الألواح المقسّاة">
+<label>ما المشكلة بالضبط؟ (الفعلي مقابل المتوقع)</label><textarea data-k="p.what">${E(S.p.what)}</textarea>
+<div class="row"><div><label>أين؟</label><input data-k="p.where" value="${E(S.p.where)}"></div><div><label>متى؟</label><input data-k="p.when" value="${E(S.p.when)}"></div></div>
+<label>كم؟ (قياس كمي)</label><input data-k="p.size" value="${E(S.p.size)}" placeholder="نسبة / عدد / مم / تكلفة">
+<div class="row"><div><label>منذ متى والاتجاه؟</label><input data-k="p.trend" value="${E(S.p.trend)}"></div><div><label>الأثر</label><input data-k="p.impact" value="${E(S.p.impact)}"></div></div></div>
+<div class="c"><h3>جودة الصياغة: <span id="ps">${q.s}</span>/100</h3><div class="bar"><i id="pb" style="width:${q.s}%;background:${col(q.s)}"></i></div><div id="ph">${q.h.map(x=>'<div class="hint">• '+x+'</div>').join('')}</div></div>
+<button class="b" onclick="go('w')">التالي: 5 Why ←</button><button class="b g" onclick="S=SAMPLE();R()">تحميل مثال</button><button class="b g" onclick="if(confirm('بدء تحليل جديد؟')){S=blank();R()}">تحليل جديد</button>`},
+w(){return`<div class="c"><h3>تحليل 5 Why</h3><p class="m">كل إجابة تصبح سؤال الخطوة التالية. أضف الدليل وحدد هل هو مؤكد أم فرضية. يمكنك إضافة خطوات أكثر من خمس.</p>
+${S.whys.map((x,i)=>`<div class="why"><label>لماذا #${i+1}: ${i?'لماذا «'+E(S.whys[i-1].t||'...')+'»؟':'لماذا حدثت «'+E(S.p.what.slice(0,60)||'المشكلة')+'»؟'}</label>
+<input data-k="whys.${i}.t" value="${E(x.t)}" placeholder="لأن..."><div class="row"><input data-k="whys.${i}.e" value="${E(x.e)}" placeholder="الدليل / القياس / المشاهدة"><select data-k="whys.${i}.ok" data-n="1"><option value="0" ${x.ok?'':'selected'}>فرضية</option><option value="1" ${x.ok?'selected':''}>مؤكد بالدليل</option></select></div>
+${x.t&&!x.e?'<div class="hint">• لا دليل بعد: اعتبرها فرضية حتى تُختبر.</div>':''}</div>`).join('')}
+<button class="b g" onclick="S.whys.push({t:'',e:'',ok:0});R()">+ خطوة</button><button class="b g" onclick="if(S.whys.length>1){S.whys.pop();R()}">− حذف الأخيرة</button></div>
+<div class="c chain" id="ch">${chain()}</div>
+<button class="b" onclick="const w=S.whys.filter(x=>x.t.trim());if(w.length){S.rc=w[w.length-1].t;go('v')}">اعتماد آخر إجابة كسبب جذري محتمل ←</button>`},
+f(){return`<div class="c"><h3>مخطط عظم السمكة (6M)</h3><p class="m">أضف الأسباب المحتملة لكل فئة. يمكنك نقل أي سبب إلى 5 Why لتعميقه.</p>
+<div class="row"><select id="fc">${Object.entries(CATS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select><input id="ft" placeholder="سبب محتمل" onkeydown="if(event.key==='Enter')addF()"><button class="b" onclick="addF()">إضافة</button></div></div>
+<div class="sv">${fish()}</div>
+${Object.entries(CATS).map(([k,v])=>S.fish[k].length?`<div class="c"><h3>${v}</h3>${S.fish[k].map((t,i)=>`<div>• ${E(t)} <button class="b g" onclick="toW('${k}',${i})">إلى 5 Why</button><button class="b g d" style="color:#fff" onclick="S.fish['${k}'].splice(${i},1);R()">حذف</button></div>`).join('')}</div>`:'').join('')}`},
+v(){const t=tsc(S),sc=Math.round(t/7*100);const verdict=t>=6?['موثوق بدرجة عالية، انتقل إلى الإجراءات.','var(--ok)']:t>=4?['متوسط: أكمل جمع الأدلة أو اختبر السبب قبل اعتماده.','var(--wn)']:['ضعيف: قد يكون عرضاً أو فرضية. عد إلى 5 Why وعظم السمكة.','var(--er)'];
+const warn=/(إهمال|تقصير|قلة|نقص|عدم|غلط|خطأ)/.test(S.rc)?'<div class="hint">• انتبه: هذه الكلمات توحي بسبب سطحي أو لوم أفراد. اسأل: أي نظام أو إجراء سمح بحدوث ذلك؟</div>':'';
+return`<div class="c"><h3>التحقق من السبب الجذري</h3><label>السبب الجذري المقترح</label><textarea data-k="rc">${E(S.rc)}</textarea>${warn}
+${TESTS.map((x,i)=>`<label class="chk"><input type="checkbox" data-k="tests.${i}" data-n="1" ${S.tests[i]?'checked':''}><span>${x}</span></label>`).join('')}
+<div class="bar"><i style="width:${sc}%;background:${verdict[1]}"></i></div><p style="color:${verdict[1]};font-weight:700">${t}/7: ${verdict[0]}</p></div>
+<div class="c"><h3>الإجراءات</h3><label>إجراء تصحيحي</label><textarea data-k="act.fix">${E(S.act.fix)}</textarea><label>إجراء وقائي (منع التكرار)</label><textarea data-k="act.prev">${E(S.act.prev)}</textarea>
+<div class="row"><div><label>المسؤول</label><input data-k="act.owner" value="${E(S.act.owner)}"></div><div><label>الموعد</label><input data-k="act.due" value="${E(S.act.due)}"></div></div></div>
+<button class="b" onclick="go('a')">حفظ وتقرير ←</button>`},
+a(){const rp=md(S);return`<div class="c"><h3>الحفظ والتقرير</h3><button class="b" onclick="save()">💾 حفظ في الأرشيف</button><button class="b g" onclick="cp('#rp')">نسخ التقرير</button><button class="b g" onclick="cp('#js')">نسخ JSON</button>
+<label>التقرير (Markdown)</label><textarea id="rp" style="min-height:200px" readonly>${E(rp)}</textarea>
+<label>استيراد / تصدير JSON</label><textarea id="js" placeholder="الصق JSON هنا للاستيراد">${E(JSON.stringify(S))}</textarea><button class="b g" onclick="imp()">استيراد</button></div>
+<div class="c"><h3>الأرشيف (${arch.length})</h3>${arch.length?arch.map((r,i)=>`<div class="chk"><input type="checkbox" ${cmp.includes(i)?'checked':''} onchange="tg(${i})"><span><b>${E(r.title||'بدون عنوان')}</b> <span class="m">صياغة ${pscore(r).s} • تحقق ${tsc(r)}/7</span><br><button class="b g" onclick="S=JSON.parse(JSON.stringify(arch[${i}]));go('p')">فتح</button><button class="b g" onclick="arch.splice(${i},1);cmp=[];store('rca_arch',arch);R()">حذف</button></span></div>`).join(''):'<p class="m">لا توجد تحليلات محفوظة.</p>'}
+${cmp.length===2?`<table><tr><th></th>${cmp.map(i=>'<th>'+E(arch[i].title)+'</th>').join('')}</tr>${[['المشكلة',r=>r.p.what],['جودة الصياغة',r=>pscore(r).s+'/100'],['خطوات 5 Why',r=>r.whys.filter(x=>x.t).length],['أسباب السمكة',nf],['السبب الجذري',r=>r.rc],['تحقق',r=>tsc(r)+'/7']].map(([n,f])=>`<tr><td>${n}</td>${cmp.map(i=>'<td>'+E(f(arch[i]))+'</td>').join('')}</tr>`).join('')}</table>`:'<p class="m">اختر تحليلين للمقارنة.</p>'}</div>`},
+g(){return`<div class="c"><h3>دليل الاستخدام</h3>
+<details open><summary>صياغة المشكلة</summary><p>اذكر الفرق بين الفعلي والمتوقع بأرقام، وحدد أين ومتى ومقدار الانحراف. تجنب: «يجب تغيير...» أو «بسبب إهمال...». الصياغة الجيدة: «12% من الألواح خارج حد الاستواء مقابل هدف 3% على الخط 1 منذ 3 أسابيع».</p></details>
+<details><summary>5 Why</summary><p>اسأل «لماذا» على الإجابة السابقة وليس على المشكلة الأصلية. توقف عندما تصل إلى سبب يمكن التحكم فيه وتغيير النظام بشأنه. لا تتوقف عند «خطأ العامل». الرقم 5 تقريبي وليس شرطاً. إن تفرع السبب فاحفظ فرعاً لكل مسار أو استخدم عظم السمكة أولاً.</p></details>
+<details><summary>عظم السمكة</summary><p>استخدمه لتوليد الفرضيات أولاً بالفئات الست: الأفراد، الآلة، الطريقة، المادة، القياس، البيئة. ثم اختر الأسباب الأكثر ترجيحاً وحللها بـ 5 Why.</p></details>
+<details><summary>التحقق</summary><p>السبب الجذري الحقيقي: يفسر الظاهرة، يدعمه دليل، تحت سيطرتك، وإزالته تمنع التكرار. جرّب تغييراً صغيراً وقِس النتيجة قبل التعميم.</p></details>
+<details><summary>أخطاء شائعة</summary><p>الخلط بين العرض والسبب • لوم الأفراد • الاكتفاء بالرأي دون بيانات • الاكتفاء بسبب واحد رغم تعدد المساهمين • عدم متابعة فعالية الإجراء.</p></details></div>`}};
+const TABS={p:'1. المشكلة',w:'2. 5 Why',f:'3. عظم السمكة',v:'4. التحقق',a:'5. الأرشيف والتقرير',g:'دليل'};
+function fish(){const W=900,H=440,Y=220,xs=[720,470,220];let s=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI,Tahoma,sans-serif" font-size="12" direction="rtl"><rect x="8" y="${Y-45}" width="130" height="90" rx="10" fill="var(--hd)" stroke="var(--pr)"/>`;
+const ph=(S.p.what||S.title||'المشكلة');[ph.slice(0,17),ph.slice(17,34)+(ph.length>34?'…':'')].forEach((l,i)=>s+=`<text x="73" y="${Y-8+i*18}" text-anchor="middle" fill="var(--tx)">${E(l)}</text>`);
+s+=`<line x1="138" y1="${Y}" x2="${W-10}" y2="${Y}" stroke="var(--pr)" stroke-width="3"/>`;
+Object.keys(CATS).forEach((k,i)=>{const up=i<3,x=xs[i%3],y0=up?30:H-30,dir=up?1:-1;
+s+=`<line x1="${x+70}" y1="${y0}" x2="${x}" y2="${Y}" stroke="var(--pr)" stroke-width="2"/><rect x="${x+25}" y="${up?4:H-28}" width="90" height="24" rx="6" fill="var(--pr)"/><text x="${x+70}" y="${up?21:H-11}" text-anchor="middle" fill="#fff" font-weight="700">${CATS[k]}</text>`;
+S.fish[k].slice(0,7).forEach((t,j)=>{const y=y0+dir*(28+j*24),bx=x+70-70*Math.abs(y-y0)/(Y-30);s+=`<line x1="${bx-60}" y1="${y}" x2="${bx}" y2="${y}" stroke="var(--mut)"/><text x="${bx-64}" y="${y+4}" text-anchor="end" fill="var(--tx)">${E(t.length>26?t.slice(0,25)+'…':t)}</text>`})});
+return s+'</svg>'}
+function addF(){const t=$('#ft').value.trim();if(!t)return;S.fish[$('#fc').value].push(t);R()}
+function toW(k,i){S.whys[0].t=S.fish[k][i];go('w')}
+function md(r){const q=pscore(r);return`# تقرير تحليل الأسباب الجذرية: ${r.title}\n\n## 1. المشكلة (جودة الصياغة ${q.s}/100)\n- الوصف: ${r.p.what}\n- الموقع: ${r.p.where}\n- التوقيت: ${r.p.when}\n- الحجم: ${r.p.size}\n- الاتجاه: ${r.p.trend}\n- الأثر: ${r.p.impact}\n\n## 2. تحليل 5 Why\n${r.whys.filter(x=>x.t).map((x,i)=>`${i+1}. ${x.t} [${x.ok?'مؤكد':'فرضية'}]${x.e?' | الدليل: '+x.e:''}`).join('\n')}\n\n## 3. عظم السمكة\n${Object.entries(CATS).map(([k,v])=>`- ${v}: ${r.fish[k].join('، ')||'-'}`).join('\n')}\n\n## 4. السبب الجذري\n${r.rc}\nنتيجة التحقق: ${tsc(r)}/7\n${TESTS.map((x,i)=>`- [${r.tests[i]?'x':' '}] ${x}`).join('\n')}\n\n## 5. الإجراءات\n- التصحيحي: ${r.act.fix}\n- الوقائي: ${r.act.prev}\n- المسؤول: ${r.act.owner} | الموعد: ${r.act.due}\n`}
+function save(){const c=JSON.parse(JSON.stringify(S));const i=arch.findIndex(x=>x.id===c.id);if(i>=0)arch[i]=c;else arch.push(c);store('rca_arch',arch);R()}
+function imp(){try{const o=JSON.parse($('#js').value);if(!o.p||!o.whys)throw 0;S=Object.assign(blank(),o);go('p')}catch(e){alert('JSON غير صالح')}}
+function cp(sel){const t=$(sel);t.select();try{navigator.clipboard.writeText(t.value).catch(()=>document.execCommand('copy'))}catch(e){try{document.execCommand('copy')}catch(x){}}}
+function tg(i){cmp=cmp.includes(i)?cmp.filter(x=>x!==i):[...cmp,i].slice(-2);R()}
+function go(t){tab=t;R();scrollTo(0,0)}
+function bind(){document.querySelectorAll('[data-k]').forEach(el=>{const f=()=>{let v=el.type==='checkbox'?(el.checked?1:0):el.value;if(el.dataset.n)v=+v;setp(el.dataset.k,v);
+if(tab==='p'){const q=pscore(S);$('#ps').textContent=q.s;$('#pb').style.width=q.s+'%';$('#pb').style.background=col(q.s);$('#ph').innerHTML=q.h.map(x=>'<div class="hint">• '+x+'</div>').join('')}
+if(tab==='w'&&el.dataset.k.endsWith('.t'))$('#ch').innerHTML=chain();
+if(el.dataset.n)R()};el.addEventListener(el.tagName==='SELECT'||el.type==='checkbox'?'change':'input',f)})}
+function R(){$('#nav').innerHTML=Object.entries(TABS).map(([k,v])=>`<button class="${k===tab?'on':''}" onclick="go('${k}')">${v}</button>`).join('');$('#v').innerHTML=V[tab]();bind()}
+R();
+</script>
+</body>
+</html>
